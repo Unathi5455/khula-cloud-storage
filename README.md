@@ -1,4 +1,4 @@
-WTC-NF3XK4KU
+Verification Code : WTC-NF3XK4KU
 
 # Khula-Sizwe Cloud Storage
 
