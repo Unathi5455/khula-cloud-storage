@@ -1,10 +1,10 @@
 # AWS storage configuration.
-#
+
 # bucket_name must be GLOBALLY unique across all of AWS, not just your
 # account - "khula-sizwe-data-lake" is almost certainly already taken.
 # Pick something like "khula-sizwe-data-lake-<yourname>-<random4digits>"
 # when you create the bucket in the console, then put that exact name here.
-#
+
 # region: us-east-1 is used as the default because it is the region most
 # consistently enabled on AWS Educate starter accounts. af-south-1 (Cape
 # Town) would be the natural choice for a South Africa-based project, but
