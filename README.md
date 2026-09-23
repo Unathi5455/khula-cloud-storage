@@ -1,6 +1,6 @@
 # Verification Code : WTC-NF3XK4KU
 
-# Khula-Sizwe Cloud Storage
+# Khula-Cloud-Storage
 
 A standalone AWS S3 data lake project, built to demonstrate practical cloud
 skills for the WeThinkCode Cloud Computing elective (AWS Educate: Intro to
@@ -15,7 +15,7 @@ processed feature table) can be pushed to S3 using this project's sync
 script, turning Khula-Sizwe's conceptual "data lake" (currently just a local
 folder) into a real cloud data lake.
 
-Kept separate deliberately: a focused, reusable storage project is a
+This is a focused, reusable storage project is a
 stronger demonstration of cloud skills on its own than cloud code buried
 inside one specific pipeline. This project would work the same way for any
 other local-folder-of-data project, not just Khula-Sizwe.
