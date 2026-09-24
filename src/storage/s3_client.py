@@ -90,3 +90,33 @@ def list_objects(bucket: str, prefix: str, client) -> list[str]:
         for obj in page.get("Contents", []):
             keys.append(obj["Key"])
     return keys
+
+
+def delete_object(bucket: str, key: str, client) -> None:
+    client.delete_object(Bucket=bucket, Key=key)
+    LOG.info("Deleted s3://%s/%s", bucket, key)
+
+
+def upload_directory(
+    local_dir: str | Path, bucket: str, prefix: str, client, skip_existing: bool = True
+) -> dict[str, int]:
+    local_dir = Path(local_dir)
+    if not local_dir.exists():
+        raise FileNotFoundError(f"Local directory does not exist: {local_dir}")
+
+    stats = {"uploaded": 0, "skipped": 0}
+    for file_path in sorted(local_dir.rglob("*")):
+        if not file_path.is_file():
+            continue
+
+        relative = file_path.relative_to(local_dir)
+        key = f"{prefix.rstrip('/')}/{relative.as_posix()}"
+
+        if skip_existing and object_exists(bucket, key, client):
+            stats["skipped"] += 1
+            continue
+
+        upload_file(file_path, bucket, key, client)
+        stats["uploaded"] += 1
+
+    return stats
