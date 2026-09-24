@@ -50,3 +50,32 @@ def object_exists(bucket: str, key: str, client) -> bool:
         if error_code in {"404", "NoSuchKey"}:
             return False
         raise
+
+
+def upload_file(local_path: str | Path, bucket: str, key: str, client) -> None:
+    local_path = Path(local_path)
+    if not local_path.exists():
+        raise FileNotFoundError(f"Cannot upload, file does not exist: {local_path}")
+
+    try:
+        client.upload_file(str(local_path), bucket, key)
+        LOG.info("Uploaded %s -> s3://%s/%s", local_path, bucket, key)
+    except NoCredentialsError as exc:
+        raise RuntimeError(
+            "No AWS credentials found. Set AWS_ACCESS_KEY_ID and "
+            "AWS_SECRET_ACCESS_KEY, or configure the AWS CLI (aws configure)."
+        ) from exc
+
+
+def download_file(bucket: str, key: str, local_path: str | Path, client) -> None:
+    local_path = Path(local_path)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        client.download_file(bucket, key, str(local_path))
+        LOG.info("Downloaded s3://%s/%s -> %s", bucket, key, local_path)
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        if error_code in {"404", "NoSuchKey"}:
+            raise FileNotFoundError(f"No such object: s3://{bucket}/{key}") from exc
+        raise
