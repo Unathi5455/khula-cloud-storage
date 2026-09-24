@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import boto3
+import pytest
+from moto import mock_aws
+
+from src.storage.s3_client import (
+    bucket_exists,
+    download_file,
+    object_exists,
+    upload_file,
+)
+
+REGION = "us-east-1"
+BUCKET = "test-khula-sizwe-bucket"
+
+
+@pytest.fixture
+def s3_client():
+    with mock_aws():
+        client = boto3.client("s3", region_name=REGION)
+        client.create_bucket(Bucket=BUCKET)
+        yield client
+
+
+def test_bucket_exists_true_for_real_bucket(s3_client):
+    assert bucket_exists(BUCKET, s3_client) is True
+
+
+def test_bucket_exists_false_for_missing_bucket(s3_client):
+    assert bucket_exists("this-bucket-does-not-exist", s3_client) is False
+
+
+def test_upload_file_then_object_exists(tmp_path, s3_client):
+    local_file = tmp_path / "sample.txt"
+    local_file.write_text("hello khula-sizwe")
+
+    upload_file(local_file, BUCKET, "raw/sample.txt", s3_client)
+
+    assert object_exists(BUCKET, "raw/sample.txt", s3_client) is True
+    assert object_exists(BUCKET, "raw/does-not-exist.txt", s3_client) is False
+
+
+def test_upload_file_raises_for_missing_local_file(s3_client):
+    with pytest.raises(FileNotFoundError):
+        upload_file("/nonexistent/path.txt", BUCKET, "raw/x.txt", s3_client)
+
+
+def test_download_file_round_trip(tmp_path, s3_client):
+    local_file = tmp_path / "upload_me.txt"
+    local_file.write_text("round trip content")
+    upload_file(local_file, BUCKET, "raw/round_trip.txt", s3_client)
+
+    download_target = tmp_path / "downloaded" / "round_trip.txt"
+    download_file(BUCKET, "raw/round_trip.txt", download_target, s3_client)
+
+    assert download_target.read_text() == "round trip content"
+
+
+def test_download_file_raises_clear_error_for_missing_key(tmp_path, s3_client):
+    with pytest.raises(FileNotFoundError, match="No such object"):
+        download_file(BUCKET, "raw/never-uploaded.txt", tmp_path / "out.txt", s3_client)
