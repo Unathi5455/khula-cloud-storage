@@ -79,3 +79,14 @@ def download_file(bucket: str, key: str, local_path: str | Path, client) -> None
         if error_code in {"404", "NoSuchKey"}:
             raise FileNotFoundError(f"No such object: s3://{bucket}/{key}") from exc
         raise
+
+
+def list_objects(bucket: str, prefix: str, client) -> list[str]:
+    
+
+    paginator = client.get_paginator("list_objects_v2")
+    keys: list[str] = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            keys.append(obj["Key"])
+    return keys
