@@ -7,8 +7,10 @@ from moto import mock_aws
 from src.storage.s3_client import (
     bucket_exists,
     download_file,
+    list_objects,
     object_exists,
     upload_file,
+    
 )
 
 REGION = "us-east-1"
@@ -60,3 +62,22 @@ def test_download_file_round_trip(tmp_path, s3_client):
 def test_download_file_raises_clear_error_for_missing_key(tmp_path, s3_client):
     with pytest.raises(FileNotFoundError, match="No such object"):
         download_file(BUCKET, "raw/never-uploaded.txt", tmp_path / "out.txt", s3_client)
+
+
+def test_list_objects_returns_all_matching_keys(tmp_path, s3_client):
+    for i in range(3):
+        f = tmp_path / f"file{i}.txt"
+        f.write_text("x")
+        upload_file(f, BUCKET, f"raw/file{i}.txt", s3_client)
+    upload_file(tmp_path / "file0.txt", BUCKET, "processed/other.txt", s3_client)
+
+    raw_keys = list_objects(BUCKET, "raw/", s3_client)
+    assert sorted(raw_keys) == ["raw/file0.txt", "raw/file1.txt", "raw/file2.txt"]
+
+
+def test_list_objects_paginates_beyond_default_page_size(s3_client):
+    for i in range(1050):
+        s3_client.put_object(Bucket=BUCKET, Key=f"raw/many/{i:04d}.txt", Body=b"x")
+
+    keys = list_objects(BUCKET, "raw/many/", s3_client)
+    assert len(keys) == 1050
