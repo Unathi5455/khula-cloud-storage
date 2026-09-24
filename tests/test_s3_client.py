@@ -6,11 +6,12 @@ from moto import mock_aws
 
 from src.storage.s3_client import (
     bucket_exists,
+    delete_object,
     download_file,
     list_objects,
     object_exists,
+    upload_directory,
     upload_file,
-    
 )
 
 REGION = "us-east-1"
@@ -81,3 +82,49 @@ def test_list_objects_paginates_beyond_default_page_size(s3_client):
 
     keys = list_objects(BUCKET, "raw/many/", s3_client)
     assert len(keys) == 1050
+
+
+def test_delete_object_removes_it(tmp_path, s3_client):
+    f = tmp_path / "to_delete.txt"
+    f.write_text("x")
+    upload_file(f, BUCKET, "raw/to_delete.txt", s3_client)
+    assert object_exists(BUCKET, "raw/to_delete.txt", s3_client) is True
+
+    delete_object(BUCKET, "raw/to_delete.txt", s3_client)
+    assert object_exists(BUCKET, "raw/to_delete.txt", s3_client) is False
+
+
+def test_upload_directory_preserves_relative_structure(tmp_path, s3_client):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "a.txt").write_text("a")
+    (tmp_path / "sub" / "b.txt").write_text("b")
+
+    stats = upload_directory(tmp_path, BUCKET, "raw", s3_client)
+
+    assert stats == {"uploaded": 2, "skipped": 0}
+    keys = sorted(list_objects(BUCKET, "raw/", s3_client))
+    assert keys == ["raw/a.txt", "raw/sub/b.txt"]
+
+
+def test_upload_directory_skips_already_uploaded_files(tmp_path, s3_client):
+    (tmp_path / "a.txt").write_text("a")
+
+    first = upload_directory(tmp_path, BUCKET, "raw", s3_client)
+    second = upload_directory(tmp_path, BUCKET, "raw", s3_client)
+
+    assert first == {"uploaded": 1, "skipped": 0}
+    assert second == {"uploaded": 0, "skipped": 1}
+
+
+def test_upload_directory_no_skip_existing_reuploads(tmp_path, s3_client):
+    (tmp_path / "a.txt").write_text("a")
+
+    upload_directory(tmp_path, BUCKET, "raw", s3_client)
+    second = upload_directory(tmp_path, BUCKET, "raw", s3_client, skip_existing=False)
+
+    assert second == {"uploaded": 1, "skipped": 0}
+
+
+def test_upload_directory_raises_for_missing_local_dir(s3_client):
+    with pytest.raises(FileNotFoundError):
+        upload_directory("/nonexistent/dir", BUCKET, "raw", s3_client)
